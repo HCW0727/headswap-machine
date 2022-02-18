@@ -22,7 +22,7 @@ def cropface(image, box, fill=50):
   else:
     h,w = shape
 
-    print(mask)
+    #print(mask)
 
   x,y,w,h = box
 
