@@ -17,7 +17,7 @@ from PIL import Image
 from numpy import eye 
 
 def match_color(target_img, source_img, eps=1e-5):
-
+    
     mu_t = target_img.mean(0).mean(0)
     t = target_img - mu_t
     t = t.transpose(2,0,1).reshape(3,-1)

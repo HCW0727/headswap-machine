@@ -4,7 +4,6 @@ from pathlib import Path
 
 route = f"{Path(__file__).parent}"
 
-im = Image.open(route + "/tests/user_img.png").convert('RGB')
-im.save(route+"/tests/user_img.jpg","jpeg")
+im = Image.open(route + "/tests/model_img.png").convert('RGB')
+im.save(route+"/tests/model_img.jpg","jpeg")
 
-#

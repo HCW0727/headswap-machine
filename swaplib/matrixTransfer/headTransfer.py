@@ -1,6 +1,5 @@
 from ..faceboxloc.facebox import makeFaceBox
 from ..stylelib.doStyle import doStyle
-from ..stylelib.color_transfer import match_color
 from ..seglib.faceSegmentation import face2parsing_maps, parsing2mask 
 from cv2.ximgproc import guidedFilter
 
@@ -8,6 +7,9 @@ from PIL import Image
 
 from .landmarks import *
 from .swapLib import *
+from pathlib import Path
+
+route = f"{Path(__file__).parent}"
 def show_landmarks(landmarks, image, fileName):
   print(f"Detected {len(landmarks)} faces. ")
   img_show = cv2.imread(image)
@@ -25,16 +27,8 @@ def show_landmarks(landmarks, image, fileName):
 def Swap(source_path, 
               # style_path, 
               ref_path, 
-              headless_path, 
-              hue_value=260, 
-              alpha_blend=40, 
-              alpha_blend_color=40,
-              color_variation=1e-5, 
-              hue_change=False, 
-              morph_closing=False,
-              linear_color=False,
-              test_results=False):
-  # Face Matrix Transference
+              headless_path ):
+  
   eps = 5e-6
   eps *= 255*255
   COLOUR_CORRECT_BLUR_FRAC = 0.6
@@ -64,8 +58,11 @@ def Swap(source_path,
   """
   # Makefacebox
   face_box = makeFaceBox(source_path, save=False)
+  cv2.imwrite("D:\Python_projects\headswap-machine/test.jpg",face_box)
   # Style transfer and colortransfer
-  face_stylized = doStyle(Image.fromarray(face_box))
+  #face_stylized = doStyle(Image.fromarray(face_box))
+  face_stylized = Image.fromarray(face_box)
+
 
   # Landmarks
   # possible problem? -> landmarks need to be of the facebox
@@ -78,15 +75,14 @@ def Swap(source_path,
   
   st_im = style_im[...,::-1]/255
   hl_tm = head_less[...,::-1]/255
-  style_linear_ct = match_color(st_im, hl_tm, eps = color_variation)
+  
+  cv2.imwrite("D:\Python_projects\headswap-machine/test2.jpg",hl_tm)
 
   lm = landmarksFromImage([face_box[...,::-1], target_im[...,::-1]])
   source_lm = lm[0][0][0]
   target_lm = lm[1][0][0]
 
-  if linear_color:
-    style_im = cv2.addWeighted(style_im, alpha_blend_color/100, (style_linear_ct*255).astype(np.uint8), (1-alpha_blend_color/100),0, dtype=cv2.CV_8U)
-    style_im = style_im[...,::-1]
+
 
   #TODO[] ?fix this to do it inplace 
   parsing = face2parsing_maps(face_box)
@@ -107,48 +103,14 @@ def Swap(source_path,
   # mask_blur = get_masked_blur(mask, 15, (15,15)) 
   compose_mask =  better_hair3d + mask_face3d
 
-  # Mask morph operations
-  if morph_closing:
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(10, 10))
-    compose_mask = cv2.morphologyEx(compose_mask, cv2.MORPH_CLOSE, kernel)
-    compose_mask = cv2.morphologyEx(compose_mask, cv2.MORPH_OPEN, kernel)
-
   t_lm = np.matrix(target_lm[ALIGN_POINTS])
   s_lm = np.matrix(source_lm[ALIGN_POINTS])
   M = transformation_from_points(t_lm, s_lm) 
   warped_mask = warp_im(compose_mask, M, target_im.shape)
 
 
-  # Warped style/source image
-  if hue_change:
-    # hue filter
-    hsv_img = rgb2hsv(style_im/255)
-    rgb_img = hsv2rgb(hsv_img)
-    hue_mean = np.mean(hsv_img[:,:,0])*360
-    picked_hue = 260
-    if hue_mean < picked_hue:
-      hue_shifter = (picked_hue-hue_mean)/360
-    else:
-      hue_shifter = (hue_mean-picked_hue)/360
-      hue_shifter = -hue_shifter
-    new_hue = np.array([hsv_img[:,:,0]+hue_shifter, hsv_img[:,:,1], hsv_img[:,:,2]]).transpose(1,2,0)
-    new_img = hsv2rgb(new_hue)
-    blend_hue = cv2.addWeighted(new_img, alpha_blend/100,rgb_img, (1-alpha_blend/100),0)
-    warped_source_im = warp_im(blend_hue*255, M, target_im.shape)
-  else:
-    warped_source_im = warp_im(style_im, M, target_im.shape)
+  warped_source_im = warp_im(style_im, M, target_im.shape)
     
-  if test_results:
-    show_landmarks(lm[0], source_path, './temp/source_landmarks.jpg')
-    show_landmarks(lm[1], ref_path, './temp/target_landmarks.jpg')
-    cv2.imwrite("./temp/style_linear_ct.jpg", style_linear_ct[...,::-1]*255)
-    cv2.imwrite("./temp/target_im_im.jpg", target_im)
-    cv2.imwrite("./temp/head_less_im.jpg", head_less)
-    cv2.imwrite("./temp/source_im.jpg", source_im)
-    cv2.imwrite("./temp/style_im.jpg", style_im)
-    cv2.imwrite("./temp/composed_mask.jpg", compose_mask*255)
-    cv2.imwrite("./temp/warped_mask.jpg", warped_mask*255)
-
   final = head_less*(1-warped_mask)+(warped_source_im*warped_mask)
  
 
